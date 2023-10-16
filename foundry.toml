@@ -3,6 +3,7 @@ src = "src"
 out = "out"
 libs = ["lib"]
 verbosity = 2
+remappings = ["@solady/=lib/solady/"]
 
 [profile.verbose]
 verbosity = 4
