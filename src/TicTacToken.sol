@@ -1,57 +1,92 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
-contract TicTacToken {
-    address public owner;
-    uint256[9] public board;
-    uint256 internal _turns;
+import {Token} from "./Token.sol";
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
-    address public PLAYER_X;
-    address public PLAYER_O;
+interface IToken is IERC20 {
+    function mint(address account, uint256 amount) external;
+}
+
+contract TicTacToken {
+    IToken internal token;
+    address public owner;
+
     uint256 internal constant EMPTY = 0;
     uint256 internal constant X = 1;
     uint256 internal constant O = 2;
+    uint256 internal _nextGameId;
+
+    struct Game {
+        address playerX;
+        address playerO;
+        uint256 turns;
+        uint256[9] board;
+    }
+
+    mapping(uint256 => Game) public games;
+    mapping(address => uint256) public totalWins;
+    mapping(address => uint256) public totalPoints;
 
     modifier onlyOwner() {
         require(msg.sender == owner, "Unauthorized");
         _;
     }
 
-    modifier onlyPlayer() {
-        require(_authPlayer(), "Unauthorized");
+    modifier onlyPlayer(uint256 id) {
+        require(_authPlayer(id), "Unauthorized");
         _;
     }
 
-    constructor(address _owner, address _playerX, address _playerO) {
+    constructor(address _owner, address _token) {
         owner = _owner;
-        PLAYER_X = _playerX;
-        PLAYER_O = _playerO;
+        token = IToken(_token);
     }
 
-    function getBoard() public view returns (uint256[9] memory) {
-        return board;
+    function getBoard(uint256 id) public view returns (uint256[9] memory) {
+        return games[id].board;
     }
 
-    function markSpace(uint256 index) public onlyPlayer {
-        uint256 mark = _getMark();
-        require(_emptySpace(index), "Space is already marked");
+    function newGame(address x, address o) public {
+        games[_nextGameId].playerX = x;
+        games[_nextGameId].playerO = o;
+        _nextGameId++;
+    }
+
+    function markSpace(uint256 id, uint256 index) public onlyPlayer(id) {
+        require(_emptySpace(id, index), "Space is already marked");
         require(_validSpace(index), "Invalid space");
-        require(_validTurn(), "Not your turn");
-        board[index] = mark;
-        ++_turns;
+        require(_validTurn(id), "Not your turn");
+        games[id].board[index] = _getMark(id);
+        games[id].turns++;
+        if (winner(id) != 0) {
+            address winnerAddress = _getAddress(id, winner(id));
+            totalWins[winnerAddress] += 1;
+            token.mint(winnerAddress, _pointsEarned(id));
+        }
     }
 
-    function winner() public view returns (uint256) {
-        uint256[6] memory wins = [_row(0), _row(1), _row(2), _coloums(0), _coloums(1), _coloums(2)];
+    function winner(uint256 id) public view returns (uint256) {
+        uint256[8] memory wins = [
+            _row(id, 0),
+            _row(id, 1),
+            _row(id, 2),
+            _coloums(id, 0),
+            _coloums(id, 1),
+            _coloums(id, 2),
+            _diagonal(id),
+            _antiDiagonal(id)
+        ];
         for (uint256 i = 0; i < wins.length; i++) {
             uint256 win = _checkWin(wins[i]);
             if (win == X || win == O) return win;
         }
+
         return 0;
     }
 
-    function currentTurn() public view returns (uint256) {
-        return _turns % 2 == 0 ? X : O;
+    function currentTurn(uint256 id) public view returns (uint256) {
+        return (games[id].turns % 2 == 0) ? X : O;
     }
     // Inside the TicTacToken contract
 
@@ -59,21 +94,44 @@ contract TicTacToken {
         return msg.sender;
     }
 
-    function resetBoard() public onlyOwner {
-        delete board;
+    function resetBoard(uint256 id) public onlyOwner {
+        delete games[id].board;
     }
 
     // function _compareStrings(string memory a, string memory b) internal pure returns (bool) {
     //     return keccak256(abi.encodePacked(a)) == keccak256(abi.encodePacked(b));
     // }
 
-    // checking board and turn helper functions
-    function _emptySpace(uint256 i) internal view returns (bool) {
-        return board[i] == EMPTY;
+    function _getAddress(uint256 id, uint256 mark) internal view returns (address) {
+        if (mark == X) {
+            return games[id].playerX;
+        }
+        if (mark == O) {
+            return games[id].playerO;
+        } else {
+            return address(0);
+        }
     }
 
-    function _validTurn() internal view returns (bool) {
-        return currentTurn() == _getMark();
+    function _pointsEarned(uint256 id) internal view returns (uint256) {
+        uint256 turns = games[id].turns;
+        uint256 moves;
+        if (winner(id) == X) {
+            moves = (turns + 1) / 2;
+        }
+        if (winner(id) == O) {
+            moves = turns / 2;
+        }
+        return 600 - (moves * 100);
+    }
+    // checking board and turn helper functions
+
+    function _emptySpace(uint256 id, uint256 i) internal view returns (bool) {
+        return games[id].board[i] == EMPTY;
+    }
+
+    function _validTurn(uint256 id) internal view returns (bool) {
+        return currentTurn(id) == _getMark(id);
     }
 
     function _validSpace(uint256 i) internal pure returns (bool) {
@@ -82,23 +140,23 @@ contract TicTacToken {
 
     // check for winner helper functions
 
-    function _row(uint256 row) internal view returns (uint256) {
+    function _row(uint256 id, uint256 row) internal view returns (uint256) {
         require(row < 3, "Row must be less than 3");
         uint256 index = 3 * row;
-        return board[index] * board[index + 1] * board[index + 2];
+        return games[id].board[index] * games[id].board[index + 1] * games[id].board[index + 2];
     }
 
-    function _coloums(uint256 coloum) internal view returns (uint256) {
+    function _coloums(uint256 id, uint256 coloum) internal view returns (uint256) {
         require(coloum < 3, "Coloum must be less than 3");
-        return board[coloum] * board[coloum + 3] * board[coloum + 6];
+        return games[id].board[coloum] * games[id].board[coloum + 3] * games[id].board[coloum + 6];
     }
 
-    function _diagonal() internal view returns (uint256) {
-        return board[0] * board[4] * board[8];
+    function _diagonal(uint256 id) internal view returns (uint256) {
+        return games[id].board[0] * games[id].board[4] * games[id].board[8];
     }
 
-    function _antiDiagonal() internal view returns (uint256) {
-        return board[2] * board[4] * board[6];
+    function _antiDiagonal(uint256 id) internal view returns (uint256) {
+        return games[id].board[2] * games[id].board[4] * games[id].board[6];
     }
 
     function _checkWin(uint256 product) internal pure returns (uint256) {
@@ -111,14 +169,14 @@ contract TicTacToken {
         }
     }
 
-    function _authPlayer() internal view returns (bool) {
-        return msg.sender == PLAYER_X || msg.sender == PLAYER_O;
+    function _authPlayer(uint256 id) internal view returns (bool) {
+        return msg.sender == games[id].playerX || msg.sender == games[id].playerO;
     }
 
-    function _getMark() public view returns (uint256) {
-        if (msg.sender == PLAYER_X) {
+    function _getMark(uint256 id) public view returns (uint256) {
+        if (msg.sender == games[id].playerX) {
             return X;
-        } else if (msg.sender == PLAYER_O) {
+        } else if (msg.sender == games[id].playerO) {
             return O;
         } else {
             return EMPTY;
