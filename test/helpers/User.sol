@@ -15,8 +15,8 @@ contract User {
         vm = _vm;
     }
 
-    function markSpace(uint256 space) public {
+    function markSpace(uint256 id, uint256 space) public {
         vm.prank(_address);
-        ttt.markSpace(space);
+        ttt.markSpace(id, space);
     }
 }
