@@ -2,21 +2,41 @@
 pragma solidity ^0.8.20;
 
 contract TicTacToken {
+    address public owner;
     uint256[9] public board;
     uint256 internal _turns;
 
+    address public PLAYER_X;
+    address public PLAYER_O;
     uint256 internal constant EMPTY = 0;
     uint256 internal constant X = 1;
     uint256 internal constant O = 2;
+
+    modifier onlyOwner() {
+        require(msg.sender == owner, "Unauthorized");
+        _;
+    }
+
+    modifier onlyPlayer() {
+        require(_authPlayer(), "Unauthorized");
+        _;
+    }
+
+    constructor(address _owner, address _playerX, address _playerO) {
+        owner = _owner;
+        PLAYER_X = _playerX;
+        PLAYER_O = _playerO;
+    }
 
     function getBoard() public view returns (uint256[9] memory) {
         return board;
     }
 
-    function markSpace(uint256 index, uint256 mark) public {
-        require(_validMark(mark), "Invalid mark");
+    function markSpace(uint256 index) public onlyPlayer {
+        uint256 mark = _getMark();
         require(_emptySpace(index), "Space is already marked");
-        require(_validTurn(mark), "Not your turn");
+        require(_validSpace(index), "Invalid space");
+        require(_validTurn(), "Not your turn");
         board[index] = mark;
         ++_turns;
     }
@@ -33,9 +53,14 @@ contract TicTacToken {
     function currentTurn() public view returns (uint256) {
         return _turns % 2 == 0 ? X : O;
     }
+    // Inside the TicTacToken contract
 
-    function _validMark(uint256 mark) internal pure returns (bool) {
-        return mark == X || mark == O;
+    function msgSender() public view returns (address) {
+        return msg.sender;
+    }
+
+    function resetBoard() public onlyOwner {
+        delete board;
     }
 
     // function _compareStrings(string memory a, string memory b) internal pure returns (bool) {
@@ -47,8 +72,12 @@ contract TicTacToken {
         return board[i] == EMPTY;
     }
 
-    function _validTurn(uint256 mark) internal view returns (bool) {
-        return mark == currentTurn();
+    function _validTurn() internal view returns (bool) {
+        return currentTurn() == _getMark();
+    }
+
+    function _validSpace(uint256 i) internal pure returns (bool) {
+        return i < 9;
     }
 
     // check for winner helper functions
@@ -79,6 +108,20 @@ contract TicTacToken {
             return O;
         } else {
             return 0;
+        }
+    }
+
+    function _authPlayer() internal view returns (bool) {
+        return msg.sender == PLAYER_X || msg.sender == PLAYER_O;
+    }
+
+    function _getMark() public view returns (uint256) {
+        if (msg.sender == PLAYER_X) {
+            return X;
+        } else if (msg.sender == PLAYER_O) {
+            return O;
+        } else {
+            return EMPTY;
         }
     }
 }
