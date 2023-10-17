@@ -5,11 +5,6 @@ import {Script} from "forge-std/Script.sol";
 import {TicTacToken} from "../src/TicTacToken.sol";
 import {Token} from "../src/Token.sol";
 
-/**
- * @title DeployWhaleConfig
- * @notice deploys WhaleConfig contract
- */
-
 contract DeployTicTacToken is Script {
     function run() external returns (Token, TicTacToken) {
         vm.startBroadcast();
