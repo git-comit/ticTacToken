@@ -1,7 +1,15 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
+import {Token} from "./Token.sol";
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+
+interface IToken is IERC20 {
+    function mint(address account, uint256 amount) external;
+}
+
 contract TicTacToken {
+    IToken internal token;
     address public owner;
 
     uint256 internal constant EMPTY = 0;
@@ -30,8 +38,9 @@ contract TicTacToken {
         _;
     }
 
-    constructor(address _owner) {
+    constructor(address _owner, address _token) {
         owner = _owner;
+        token = IToken(_token);
     }
 
     function getBoard(uint256 id) public view returns (uint256[9] memory) {
@@ -53,7 +62,7 @@ contract TicTacToken {
         if (winner(id) != 0) {
             address winnerAddress = _getAddress(id, winner(id));
             totalWins[winnerAddress] += 1;
-            totalPoints[winnerAddress] += _pointsEarned(id);
+            token.mint(winnerAddress, _pointsEarned(id));
         }
     }
 

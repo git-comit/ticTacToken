@@ -10,10 +10,10 @@ import {TicTacToken} from "../src/TicTacToken.sol";
  */
 
 contract DeployTicTacToken is Script {
-    function run() external returns (TicTacToken) {
-        vm.startBroadcast();
-        TicTacToken ticTacToken = new TicTacToken(msg.sender);
-        vm.stopBroadcast();
-        return ticTacToken;
-    }
+// function run() external returns (TicTacToken) {
+//     vm.startBroadcast();
+//     TicTacToken ticTacToken = new TicTacToken(msg.sender);
+//     vm.stopBroadcast();
+//     return ticTacToken;
+// }
 }

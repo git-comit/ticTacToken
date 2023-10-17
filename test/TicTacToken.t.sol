@@ -5,6 +5,7 @@ import {DSTest} from "ds-test/test.sol";
 import {console} from "forge-std/Script.sol";
 import {Vm} from "forge-std/Vm.sol";
 import {TicTacToken} from "../src/TicTacToken.sol";
+import {Token} from "../src/Token.sol";
 import {Caller} from "./helpers/Caller.sol";
 import {User} from "./helpers/User.sol";
 
@@ -13,7 +14,7 @@ contract TicTacTokenTest is DSTest {
     TicTacToken internal ttt;
     User internal playerX;
     User internal playerO;
-
+    Token internal token;
     address internal constant OWNER = address(0x1);
 
     address internal constant PLAYER_X = address(0x2);
@@ -23,10 +24,12 @@ contract TicTacTokenTest is DSTest {
     uint256 internal constant O = 2;
 
     function setUp() public {
-        ttt = new TicTacToken(OWNER);
+        token = new Token();
+        ttt = new TicTacToken(OWNER, address(token));
         playerX = new User(PLAYER_X, ttt,vm );
         playerO = new User(PLAYER_O, ttt,vm );
         ttt.newGame(PLAYER_X, PLAYER_O);
+        token.transferOwnership(address(ttt));
     }
 
     function test_owner() public {
@@ -240,7 +243,7 @@ contract TicTacTokenTest is DSTest {
         playerX.markSpace(0, 1);
         playerO.markSpace(0, 4);
         playerX.markSpace(0, 2);
-        assertEq(ttt.totalPoints(PLAYER_X), 300);
+        assertEq(token.balanceOf(PLAYER_X), 300);
     }
 
     function test_threeMoveWinO() public {
@@ -253,7 +256,7 @@ contract TicTacTokenTest is DSTest {
         playerO.markSpace(0, 4);
         playerX.markSpace(0, 6);
         playerO.markSpace(0, 5);
-        assertEq(ttt.totalPoints(PLAYER_O), 300);
+        assertEq(token.balanceOf(PLAYER_O), 300);
     }
 
     function test_fourMoveWinX() public {
@@ -267,7 +270,7 @@ contract TicTacTokenTest is DSTest {
         playerX.markSpace(0, 6);
         playerO.markSpace(0, 7);
         playerX.markSpace(0, 2);
-        assertEq(ttt.totalPoints(PLAYER_X), 200);
+        assertEq(token.balanceOf(PLAYER_X), 200);
     }
 
     function test_fourMoveWinO() public {
@@ -282,7 +285,7 @@ contract TicTacTokenTest is DSTest {
         playerO.markSpace(0, 7);
         playerX.markSpace(0, 8);
         playerO.markSpace(0, 5);
-        assertEq(ttt.totalPoints(PLAYER_O), 200);
+        assertEq(token.balanceOf(PLAYER_O), 200);
     }
 
     function test_fiveMoveWinX() public {
@@ -298,6 +301,6 @@ contract TicTacTokenTest is DSTest {
         playerX.markSpace(0, 5);
         playerO.markSpace(0, 8);
         playerX.markSpace(0, 2);
-        assertEq(ttt.totalPoints(PLAYER_X), 100);
+        assertEq(token.balanceOf(PLAYER_X), 100);
     }
 }
