@@ -2,14 +2,21 @@
 pragma solidity ^0.8.20;
 
 import {Token} from "./Token.sol";
+import {NFT} from "./NFT.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {IERC721} from "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 
 interface IToken is IERC20 {
     function mint(address account, uint256 amount) external;
 }
 
+interface INFT is IERC721 {
+    function mint(address to, uint256 tokenId) external;
+}
+
 contract TicTacToken {
     IToken internal token;
+    INFT internal nft;
     address public owner;
 
     uint256 internal constant EMPTY = 0;
@@ -38,9 +45,10 @@ contract TicTacToken {
         _;
     }
 
-    constructor(address _owner, address _token) {
+    constructor(address _owner, address _token, address _nft) {
         owner = _owner;
         token = IToken(_token);
+        nft = INFT(_nft);
     }
 
     function getBoard(uint256 id) public view returns (uint256[9] memory) {
